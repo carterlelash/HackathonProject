@@ -1,0 +1,116 @@
+const Engine = Matter.Engine,
+    Render = Matter.Render,
+    Runner = Matter.Runner,
+    Bodies = Matter.Bodies,
+    Composite = Matter.Composite,
+    Mouse = Matter.Mouse,
+    MouseConstraint = Matter.MouseConstraint,
+    Body = Matter.Body,
+    Events = Matter.Events;
+
+const iEngine = Engine.create();
+const iRunner = Runner.create();
+
+const width = window.innerWidth * 0.8;
+const height = window.innerHeight * 0.8;
+
+const iRender = Render.create({
+    element: document.getElementById("simulation-container"),
+    engine: iEngine,
+    options: {
+        width: width,
+        height: height,
+        wireframes: false,
+        background: "blue"
+    }
+});
+
+const centerX = iRender.options.width / 2;
+const centerY = iRender.options.height / 2;
+
+const canBeDragged = 0x0001
+const cannotBeDragged = 0x0002
+
+const boxA = Bodies.rectangle(centerX, centerY, 200, 80, {
+  collisionFilter: {
+      category: canBeDragged, // Assign a unique category for draggable bodies
+      mask: 0x0001 // Collide only with bodies of the same category
+  }});
+const ballA = Bodies.circle(100, 100, 40, {
+  collisionFilter: {
+    category: cannotBeDragged, // Assign a unique category for draggable bodies
+    mask: 0x0001 // Collide only with bodies of the same category
+  }
+});
+
+const ground = Bodies.rectangle(centerX, iRender.options.height - 30, iRender.options.width, 60, { isStatic: true });
+
+const leftWall = Bodies.rectangle(0, centerY, 10, iRender.options.height, { isStatic: true });
+const rightWall = Bodies.rectangle(iRender.options.width, centerY, 10, iRender.options.height, { isStatic: true });
+const topWall = Bodies.rectangle(centerX, 0, iRender.options.width, 10, { isStatic: true });
+
+const goal = Bodies.rectangle(1000, 100, 200, 10, { isStatic: true });
+
+Composite.add(iEngine.world, [boxA, ballA, ground, leftWall, rightWall, topWall, goal]);
+
+// Create a mouse constraint
+const mouse = Mouse.create(iRender.canvas);
+const mouseConstraint = MouseConstraint.create(iEngine, {
+  mouse: mouse,
+  constraint: {
+    stiffness: 0.2,
+    render: {
+      visible: false
+    }
+  },
+  // Filter function to allow dragging only for boxA (rectangle)
+  collisionFilter: {
+    category: canBeDragged,
+    mask: canBeDragged | cannotBeDragged
+  }
+});
+
+Composite.add(iEngine.world, mouseConstraint);
+
+// Track the initial mouse position
+let initialMousePosition;
+
+// Listen for mouse events
+Events.on(mouseConstraint, "mousedown", function (event) {
+  const { body } = event.source;
+
+  // Only rotate boxA when clicked
+  if (body === boxA) {
+    Body.rotate(boxA, Math.PI / 2);
+  } else {
+    // Store the initial mouse position for dragging
+    initialMousePosition = event.mouse.position;
+  }
+});
+
+Events.on(mouseConstraint, "mousemove", function (event) {
+  const { body } = event.source;
+
+  // Only apply translation to boxA if it's being dragged
+  if (body === boxA && initialMousePosition) {
+    const { x, y } = event.mouse.position;
+
+    // Calculate the delta between initial and current mouse positions
+    const deltaX = x - initialMousePosition.x;
+    const deltaY = y - initialMousePosition.y;
+
+    // Apply translation based on the delta coordinates
+    Body.translate(boxA, { x: deltaX, y: deltaY });
+
+    // Update the initial mouse position for continuous dragging
+    initialMousePosition = { x, y };
+  }
+});
+
+Events.on(mouseConstraint, "mouseup", function () {
+  // Reset the initial mouse position after dragging
+  initialMousePosition = null;
+});
+
+Render.run(iRender);
+Runner.run(iRunner, iEngine);
