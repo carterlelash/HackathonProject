@@ -30,7 +30,7 @@ if (spawnPoint) {
 } else {
     point = 1000;
 }
-const ballA = Bodies.circle(500, 250, 30);
+const ballA = Bodies.circle(point, 250, 30);
 ballA.friction = 100
 ballA.render.fillStyle = "red";
 ballA.isStatic = true;
